@@ -26,17 +26,28 @@ app.get('/', (req, res) => {
   res.send('Expense Tracker API is running...');
 });
 
-// Database Connection
+// Database Connection (Vercel Serverless optimization)
+let cachedDb = null;
+
 const connectDB = async () => {
+  if (cachedDb) return cachedDb;
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/expense_tracker');
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    cachedDb = conn;
+    return conn;
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
-    process.exit(1);
+    // Don't process.exit(1) on serverless, just throw
+    throw error;
   }
 };
 
-connectDB().then(() => {
+// Connect to DB immediately for local & serverless cold starts
+connectDB();
+
+if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-});
+}
+
+module.exports = app;
